@@ -1,7 +1,7 @@
 # Telemetry Eval Engine
 
 > **Autonomous Vehicle Telemetry Ingestion, Anomaly Detection & Dataset Integrity Checks**
-> *Engineered by Paul Trafford ([@elura172](https://github.com/elura172)) · Tokyo Relocation Pipeline Candidate*
+> *Engineered by elura172 ([@elura172](https://github.com/elura172)) · Tokyo Relocation Pipeline Candidate*
 > Independent portfolio prototype; not affiliated with Woven by Toyota.
 
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://www.python.org/)
@@ -171,8 +171,8 @@ telemetry-eval-engine/
 
 ## Author & Contact
 
-**Paul Trafford**  
+**elura172**  
 *AI Systems & Data Infrastructure Engineer*  
 * **GitHub:** [github.com/elura172](https://github.com/elura172)  
-* **Email:** [paul.trafford@protonmail.com](mailto:paul.trafford@protonmail.com)  
+* **Email:** [228485553+elura172@users.noreply.github.com](mailto:228485553+elura172@users.noreply.github.com)  
 * **Target:** Tokyo Relocation Pipeline / Woven by Toyota Enterprise AI Platform

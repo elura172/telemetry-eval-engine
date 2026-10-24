@@ -19,7 +19,7 @@ def print_banner():
         "[bold cyan]TELEMETRY EVAL ENGINE // INDEPENDENT PROTOTYPE[/bold cyan]\n"
         "[dim]Simulated Telemetry, Anomaly Detection & Dataset Integrity Checks[/dim]\n"
         "[dim]Portfolio project; not affiliated with Woven by Toyota[/dim]\n"
-        "[dim white]Author: Paul Trafford (elura172) · Tokyo Relocation Pipeline Candidate[/dim white]"
+        "[dim white]Author: elura172 · Tokyo Relocation Pipeline Candidate[/dim white]"
     )
     console.print(Panel(banner_text, border_style="cyan", box=box.DOUBLE))
 
