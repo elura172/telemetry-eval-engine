@@ -3,16 +3,18 @@ Streaming Telemetry Ingestion and Lossless Ring Buffer.
 """
 import math
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from src.models.types import VehicleTelemetryFrame
 
 
 class ZeroLossBuffer:
     """
-    High-throughput memory-bounded ring buffer for sensor telemetry streams.
-    Tracks frame sequence continuity, detects dropped packets, and ensures zero data loss.
+    Fixed-capacity ring buffer for sensor telemetry streams.
+    Tracks sequence gaps and rejects writes that would overwrite unread frames.
     """
     def __init__(self, capacity: int = 10000):
+        if capacity < 1:
+            raise ValueError("capacity must be at least 1")
         self.capacity = capacity
         self._buffer: List[Optional[VehicleTelemetryFrame]] = [None] * capacity
         self._head: int = 0
@@ -30,15 +32,16 @@ class ZeroLossBuffer:
             expected = self._last_frame_id + 1
             if frame.frame_id > expected:
                 dropped = frame.frame_id - expected
-                self._dropped_frames_count += dropped
-
-        self._last_frame_id = frame.frame_id
+            elif frame.frame_id <= self._last_frame_id:
+                # Do not let duplicate or out-of-order input move sequence state backward.
+                return False, 0
 
         if self._count == self.capacity:
-            # Overwrite oldest frame if full (backpressure warning)
-            self._head = (self._head + 1) % self.capacity
-            self._count -= 1
+            # Backpressure is explicit: callers must drain before retrying.
+            return False, 0
 
+        self._last_frame_id = frame.frame_id
+        self._dropped_frames_count += dropped
         self._buffer[self._tail] = frame
         self._tail = (self._tail + 1) % self.capacity
         self._count += 1
@@ -63,6 +66,10 @@ class ZeroLossBuffer:
     @property
     def size(self) -> int:
         return self._count
+
+    @property
+    def last_frame_id(self) -> Optional[int]:
+        return self._last_frame_id
 
 
 class TokyoTelemetrySimulator:

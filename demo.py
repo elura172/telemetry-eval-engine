@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""
-Interactive Terminal Demo for Woven by Toyota: Telemetry Ingest & Evaluation Engine.
-Runs live 50Hz autonomous vehicle telemetry streams, anomaly interception, and the 10-scenario benchmark suite.
-"""
-import sys
+"""Independent portfolio demo of simulated telemetry checks and evaluation scenarios."""
 import time
 from rich.console import Console
 from rich.table import Table
@@ -20,15 +16,16 @@ console = Console()
 
 def print_banner():
     banner_text = (
-        "[bold cyan]WOVEN BY TOYOTA // TELEMETRY EVAL ENGINE[/bold cyan]\n"
-        "[dim]High-Frequency Vehicle Telemetry Ingestion, Anomaly Detection & ML Dataset Certification[/dim]\n"
+        "[bold cyan]TELEMETRY EVAL ENGINE // INDEPENDENT PROTOTYPE[/bold cyan]\n"
+        "[dim]Simulated Telemetry, Anomaly Detection & Dataset Integrity Checks[/dim]\n"
+        "[dim]Portfolio project; not affiliated with Woven by Toyota[/dim]\n"
         "[dim white]Author: Paul Trafford (elura172) · Tokyo Relocation Pipeline Candidate[/dim white]"
     )
     console.print(Panel(banner_text, border_style="cyan", box=box.DOUBLE))
 
 
-def run_live_telemetry_simulation():
-    console.print("\n[bold yellow]▶ STEP 1: Live 50Hz Autonomous Vehicle Telemetry Stream (Tokyo Loop)[/bold yellow]")
+def run_simulated_telemetry():
+    console.print("\n[bold yellow]▶ STEP 1: Simulated 50Hz Vehicle Telemetry Stream (Tokyo Loop)[/bold yellow]")
     sim = TokyoTelemetrySimulator()
     pipeline = TelemetryIngestPipeline()
 
@@ -52,7 +49,7 @@ def run_live_telemetry_simulation():
         console.print(f"    [red]• [{anomaly.anomaly_type.value}][/red] {anomaly.description} (Severity: [bold yellow]{anomaly.severity}[/bold yellow])")
 
     verdict_style = "green" if report.verdict == DatasetQualityVerdict.CERTIFIED else ("yellow" if report.verdict == DatasetQualityVerdict.WARNING else "red")
-    console.print(f"  Dataset Certification Verdict: [{verdict_style}][bold]{report.verdict.value}[/bold][/{verdict_style}]")
+    console.print(f"  Dataset Quality Verdict: [{verdict_style}][bold]{report.verdict.value}[/bold][/{verdict_style}]")
     console.print(f"  SHA-256 Dataset Checksum: [dim]{report.dataset_checksum}[/dim]")
     console.print(f"  Ingest Processing Latency: [cyan]{report.processing_time_ms} ms[/cyan]")
 
@@ -62,19 +59,19 @@ def run_benchmark():
     suite = TelemetryBenchmarkSuite()
     benchmark_res = suite.run_benchmark()
 
-    table = Table(title="Autonomous Telemetry & Dataset Certification Benchmark", box=box.ROUNDED)
-    table.add_column("Scenario ID", style="bold cyan")
-    table.add_column("Description", style="white")
-    table.add_column("Expected Verdict", style="magenta")
-    table.add_column("Actual Verdict", style="bold")
-    table.add_column("Status", style="bold")
+    table = Table(title="Synthetic Telemetry Scenario Benchmark", box=box.ROUNDED, padding=(0, 1))
+    table.add_column("Scenario", style="bold cyan", max_width=16, no_wrap=True, overflow="ellipsis")
+    table.add_column("Case", style="white", max_width=23, no_wrap=True, overflow="ellipsis")
+    table.add_column("Expected", style="magenta", width=9, no_wrap=True)
+    table.add_column("Actual", style="bold", width=9, no_wrap=True)
+    table.add_column("Result", style="bold", width=6, no_wrap=True)
 
     for sc in benchmark_res["scenarios"]:
         status_str = "[bold green]PASS[/bold green]" if sc["passed"] else "[bold red]FAIL[/bold red]"
         verdict_style = "green" if sc["actual_verdict"] == "CERTIFIED" else ("yellow" if sc["actual_verdict"] == "WARNING" else "red")
         table.add_row(
             sc["scenario"],
-            sc["description"][:50] + "...",
+            sc["description"],
             sc["expected_verdict"],
             f"[{verdict_style}]{sc['actual_verdict']}[/{verdict_style}]",
             status_str,
@@ -86,16 +83,16 @@ def run_benchmark():
         f"[bold]Total Scenarios:[/bold] {benchmark_res['total_scenarios']} | "
         f"[bold green]Passed:[/bold green] {benchmark_res['passed']} | "
         f"[bold red]Failed:[/bold red] {benchmark_res['failed']} | "
-        f"[bold cyan]Accuracy Score:[/bold cyan] [bold green]{benchmark_res['accuracy_score']}%[/bold green]",
+        f"[bold cyan]Scenario Pass Rate:[/bold cyan] [bold green]{benchmark_res['pass_rate_pct']}%[/bold green]",
         border_style="green",
-        title="Woven Enterprise AI Data Benchmark Summary",
+        title="Fixed Simulator Scenarios",
     )
     console.print(summary_panel)
 
 
 def main():
     print_banner()
-    run_live_telemetry_simulation()
+    run_simulated_telemetry()
     time.sleep(0.5)
     run_benchmark()
 

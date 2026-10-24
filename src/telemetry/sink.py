@@ -1,12 +1,11 @@
-"""
-Dataset Sink, Checksum Certification, and Telemetry Ingestion Pipeline.
-"""
+"""In-memory clean-frame sink, content checksum, and telemetry evaluation pipeline."""
 import hashlib
 import json
 import time
-from typing import Dict, List, Optional
+from typing import List, Optional
 from src.models.types import (
     AnomalyEvent,
+    AnomalyType,
     DatasetQualityVerdict,
     IngestReport,
     VehicleTelemetryFrame,
@@ -25,8 +24,15 @@ class DatasetSink:
 
     def sink_frame(self, frame: VehicleTelemetryFrame):
         self._sunk_frames.append(frame)
-        serialized = f"{frame.frame_id}:{frame.timestamp_ns}:{frame.speed_mps:.3f}:{frame.accel_x:.3f}"
+        # Canonical, framed serialization covers every schema field, including metadata.
+        serialized = json.dumps(
+            frame.model_dump(mode="json"),
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
         self._sha256.update(serialized.encode("utf-8"))
+        self._sha256.update(b"\n")
 
     @property
     def total_sunk(self) -> int:
@@ -39,7 +45,7 @@ class DatasetSink:
 
 class TelemetryIngestPipeline:
     """
-    End-to-end ingestion pipeline evaluating raw vehicle telemetry into a certified training dataset.
+    In-memory evaluation pipeline that reports quality gates and hashes accepted frames.
     """
     def __init__(
         self,
@@ -54,25 +60,40 @@ class TelemetryIngestPipeline:
 
     def process_stream(self, frames: List[VehicleTelemetryFrame], dataset_id: str = "ds-tokyo-telemetry-01") -> IngestReport:
         start_time = time.perf_counter()
+        # A pipeline may be reused; each call evaluates one independent dataset.
+        self.buffer = ZeroLossBuffer(capacity=self.buffer.capacity)
+        self.anomaly_detector.reset()
+        self.sink = DatasetSink()
         total_dropped = 0
         detected_anomalies: List[AnomalyEvent] = []
-
-        # 1. Stream into Zero-Loss Ring Buffer
-        for frame in frames:
-            _, dropped = self.buffer.push(frame)
-            total_dropped += dropped
-
-        # 2. Pop batches from buffer and evaluate
         processed_frames: List[VehicleTelemetryFrame] = []
-        while self.buffer.size > 0:
-            batch = self.buffer.pop_batch(batch_size=100)
-            for frame in batch:
-                anomalies = self.anomaly_detector.inspect_frame(frame)
-                if anomalies:
+
+        def drain_buffer() -> None:
+            while self.buffer.size:
+                for frame in self.buffer.pop_batch(batch_size=100):
+                    anomalies = self.anomaly_detector.inspect_frame(frame)
                     detected_anomalies.extend(anomalies)
-                else:
-                    self.sink.sink_frame(frame)
-                processed_frames.append(frame)
+                    if not anomalies:
+                        self.sink.sink_frame(frame)
+                    processed_frames.append(frame)
+
+        # Drain under backpressure instead of allowing the fixed-capacity buffer to lose frames.
+        for frame in frames:
+            if self.buffer.size == self.buffer.capacity:
+                drain_buffer()
+            accepted, dropped = self.buffer.push(frame)
+            if not accepted:
+                detected_anomalies.append(AnomalyEvent(
+                    frame_id=frame.frame_id,
+                    timestamp_ns=frame.timestamp_ns,
+                    anomaly_type=AnomalyType.DROPPED_FRAME,
+                    severity="CRITICAL",
+                    description="Duplicate or out-of-order frame rejected by sequence guard",
+                    metric_value=float(frame.frame_id),
+                    threshold_value=float(self.buffer.last_frame_id or 0),
+                ))
+            total_dropped += dropped
+        drain_buffer()
 
         # 3. Distributional Drift Analysis
         drift_score, drift_anomaly = self.drift_detector.compute_drift(processed_frames)

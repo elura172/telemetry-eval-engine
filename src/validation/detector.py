@@ -1,8 +1,6 @@
-"""
-Differentiable Anomaly & Distributional Drift Detection Engine.
-"""
+"""Physical plausibility and simple speed-mean drift checks."""
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from src.models.types import AnomalyEvent, AnomalyType, VehicleTelemetryFrame
 
 
@@ -28,36 +26,17 @@ class AnomalyDetector:
 
         self._last_frame: Optional[VehicleTelemetryFrame] = None
 
+    def reset(self) -> None:
+        """Clear temporal state before evaluating an independent dataset."""
+        self._last_frame = None
+
     def inspect_frame(self, frame: VehicleTelemetryFrame) -> List[AnomalyEvent]:
-        anomalies: List[AnomalyEvent] = []
-
-        # 1. IMU Saturation Check
-        if abs(frame.accel_x) >= self.imu_saturation_limit or abs(frame.accel_y) >= self.imu_saturation_limit:
-            anomalies.append(
-                AnomalyEvent(
-                    frame_id=frame.frame_id,
-                    timestamp_ns=frame.timestamp_ns,
-                    anomaly_type=AnomalyType.IMU_SATURATION,
-                    severity="CRITICAL",
-                    description=f"IMU sensor rail saturated (accel_x={frame.accel_x:.1f}, accel_y={frame.accel_y:.1f})",
-                    metric_value=max(abs(frame.accel_x), abs(frame.accel_y)),
-                    threshold_value=self.imu_saturation_limit,
-                )
-            )
-
-        # 2. Kinematic Plausibility Check (Impossible Lateral Acceleration)
-        elif abs(frame.accel_y) > self.max_lateral_accel:
-            anomalies.append(
-                AnomalyEvent(
-                    frame_id=frame.frame_id,
-                    timestamp_ns=frame.timestamp_ns,
-                    anomaly_type=AnomalyType.KINEMATIC_VIOLATION,
-                    severity="HIGH",
-                    description=f"Lateral acceleration {frame.accel_y:.2f} m/s^2 violates road friction limit",
-                    metric_value=abs(frame.accel_y),
-                    threshold_value=self.max_lateral_accel,
-                )
-            )
+        anomalies = self.inspect_accelerations(
+            frame_id=frame.frame_id,
+            timestamp_ns=frame.timestamp_ns,
+            accel_x=frame.accel_x,
+            accel_y=frame.accel_y,
+        )
 
         # 3. Temporal Jitter and Sequence Checks against Prior Frame
         if self._last_frame is not None:
@@ -80,10 +59,11 @@ class AnomalyDetector:
             dlat = (frame.gps_lat - self._last_frame.gps_lat) * 111_000
             dlon = (frame.gps_lon - self._last_frame.gps_lon) * 111_000 * math.cos(math.radians(frame.gps_lat))
             distance_meters = math.sqrt(dlat * dlat + dlon * dlon)
-            dt_seconds = max(0.001, dt_ns / 1e9)
-            speed_gps_mps = distance_meters / dt_seconds
+            # A non-positive delta is a clock/order fault; dividing by a tiny
+            # clamped interval would manufacture a GPS teleportation alarm.
+            speed_gps_mps = distance_meters / (dt_ns / 1e9) if dt_ns > 0 else 0.0
 
-            if speed_gps_mps > self.max_gps_jump_mps:
+            if dt_ns > 0 and speed_gps_mps > self.max_gps_jump_mps:
                 anomalies.append(
                     AnomalyEvent(
                         frame_id=frame.frame_id,
@@ -98,6 +78,68 @@ class AnomalyDetector:
 
         self._last_frame = frame
         return anomalies
+
+    def inspect_accelerations(
+        self,
+        frame_id: int,
+        timestamp_ns: int,
+        accel_x: float,
+        accel_y: float,
+    ) -> List[AnomalyEvent]:
+        """Evaluate acceleration fields without requiring unrelated GPS/camera data."""
+        anomalies: List[AnomalyEvent] = []
+
+        # 1. IMU Saturation Check
+        if abs(accel_x) >= self.imu_saturation_limit or abs(accel_y) >= self.imu_saturation_limit:
+            anomalies.append(
+                AnomalyEvent(
+                    frame_id=frame_id,
+                    timestamp_ns=timestamp_ns,
+                    anomaly_type=AnomalyType.IMU_SATURATION,
+                    severity="CRITICAL",
+                    description=f"IMU sensor rail saturated (accel_x={accel_x:.1f}, accel_y={accel_y:.1f})",
+                    metric_value=max(abs(accel_x), abs(accel_y)),
+                    threshold_value=self.imu_saturation_limit,
+                )
+            )
+
+        # 2. Kinematic Plausibility Checks
+        else:
+            anomalies.extend(self.inspect_longitudinal_acceleration(frame_id, timestamp_ns, accel_x))
+            if abs(accel_y) > self.max_lateral_accel:
+                anomalies.append(
+                    AnomalyEvent(
+                        frame_id=frame_id,
+                        timestamp_ns=timestamp_ns,
+                        anomaly_type=AnomalyType.KINEMATIC_VIOLATION,
+                        severity="HIGH",
+                        description=f"Lateral acceleration {accel_y:.2f} m/s^2 violates road friction limit",
+                        metric_value=abs(accel_y),
+                        threshold_value=self.max_lateral_accel,
+                    )
+                )
+        return anomalies
+
+    def inspect_longitudinal_acceleration(
+        self,
+        frame_id: int,
+        timestamp_ns: int,
+        accel_x: float,
+    ) -> List[AnomalyEvent]:
+        """Check longitudinal acceleration without assuming an IMU source."""
+        if abs(accel_x) <= self.max_longitudinal_accel:
+            return []
+        return [
+            AnomalyEvent(
+                frame_id=frame_id,
+                timestamp_ns=timestamp_ns,
+                anomaly_type=AnomalyType.KINEMATIC_VIOLATION,
+                severity="HIGH",
+                description=f"Longitudinal acceleration {accel_x:.2f} m/s^2 exceeds configured limit",
+                metric_value=abs(accel_x),
+                threshold_value=self.max_longitudinal_accel,
+            )
+        ]
 
 
 class DistributionDriftDetector:

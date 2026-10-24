@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class DatasetQualityVerdict(str, Enum):
-    CERTIFIED = "CERTIFIED"              # Clean dataset approved for model training/labeling
+    CERTIFIED = "CERTIFIED"              # No configured quality gate reported an issue
     WARNING = "WARNING"                  # Minor anomalies detected; flagged for review
     REJECTED = "REJECTED"                # Significant corruption or drift; blocked from training
 
@@ -22,17 +22,17 @@ class AnomalyType(str, Enum):
 
 
 class VehicleTelemetryFrame(BaseModel):
-    frame_id: int
-    vehicle_id: str
-    timestamp_ns: int
-    speed_mps: float = Field(ge=0.0, le=100.0)
-    steering_angle_rad: float = Field(ge=-1.57, le=1.57)
-    accel_x: float  # Longitudinal acceleration (m/s^2)
-    accel_y: float  # Lateral acceleration (m/s^2)
-    accel_z: float  # Vertical acceleration (m/s^2)
-    gps_lat: float
-    gps_lon: float
-    imu_yaw_rate: float
+    frame_id: int = Field(ge=0)
+    vehicle_id: str = Field(min_length=1)
+    timestamp_ns: int = Field(ge=0)
+    speed_mps: float = Field(ge=0.0, le=100.0, allow_inf_nan=False)
+    steering_angle_rad: float = Field(ge=-1.57, le=1.57, allow_inf_nan=False)
+    accel_x: float = Field(allow_inf_nan=False)  # Longitudinal acceleration (m/s^2)
+    accel_y: float = Field(allow_inf_nan=False)  # Lateral acceleration (m/s^2)
+    accel_z: float = Field(allow_inf_nan=False)  # Vertical acceleration (m/s^2)
+    gps_lat: float = Field(ge=-90.0, le=90.0, allow_inf_nan=False)
+    gps_lon: float = Field(ge=-180.0, le=180.0, allow_inf_nan=False)
+    imu_yaw_rate: float = Field(allow_inf_nan=False)
     camera_sync_id: str
     metadata: Dict[str, str] = Field(default_factory=dict)
 

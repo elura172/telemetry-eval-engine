@@ -1,7 +1,7 @@
 [project]
 name = "telemetry-eval-engine"
 version = "0.1.0"
-description = "High-frequency autonomous vehicle telemetry ingestion, differentiable drift detection & ML dataset certification"
+description = "Autonomous vehicle telemetry ingestion, anomaly detection, and dataset integrity checks"
 authors = [{ name = "Paul Trafford", email = "paul.trafford@protonmail.com" }]
 readme = "README.md"
 requires-python = ">=3.11"

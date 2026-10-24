@@ -1,0 +1,67 @@
+{
+  "baseline": {
+    "alarm_frame_ids": [],
+    "alarm_rows": 0,
+    "records": 600
+  },
+  "dataset": {
+    "license": "CC BY-SA 3.0",
+    "name": "FHWA NGSIM vehicle trajectories and supporting data",
+    "records": 600,
+    "sample_file": "data/ngsim_vehicle_396_total_frames_1628_first600.csv",
+    "sample_rate_hz": 10,
+    "sample_sha256": "2d7a829a64ec2e607e5c44095b67464b7aa19776c57f842a7ce1cfd692067bba",
+    "source_fault_labels_available": false,
+    "source_url": "https://data.transportation.gov/d/8ect-6jqj",
+    "units_conversion": "v_acc ft/s^2 to m/s^2 using 0.3048",
+    "vehicle_key": "vehicle_id=396,total_frames=1628"
+  },
+  "environment": {
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "python_version": "3.13.5"
+  },
+  "injected_faults": {
+    "edits": [
+      {
+        "accel_x_mps2": 13.0,
+        "frame_id": 2731,
+        "label": "injected value edit"
+      },
+      {
+        "accel_x_mps2": 11.5,
+        "frame_id": 2931,
+        "label": "injected value edit"
+      }
+    ],
+    "false_negative_rows": 1,
+    "false_positive_rows_on_unmodified_data": 0,
+    "precision": 1.0,
+    "recall": 0.5,
+    "true_negative_rows_under_clean_trace_assumption": 598,
+    "true_positive_rows": 1
+  },
+  "scope": {
+    "configured_longitudinal_limit_mps2": 12.0,
+    "evaluated_fields": [
+      "frame_id",
+      "timestamp_ns",
+      "v_acc"
+    ],
+    "evaluated_gate": "longitudinal acceleration plausibility",
+    "excluded_checks": [
+      "GPS",
+      "IMU sensor-rail interpretation",
+      "lateral acceleration",
+      "camera sync",
+      "distribution drift"
+    ],
+    "labeling_note": "NGSIM has no sensor-fault labels. Confusion metrics use only the exact injected edits as positive labels and assume all unmodified rows are clean; this assumption is not source ground truth."
+  },
+  "throughput": {
+    "elapsed_seconds": 0.050981,
+    "measurement_scope": "detector gate only; excludes CSV parsing and file I/O",
+    "records_evaluated": 600000,
+    "records_per_second": 11768984.71,
+    "repeats": 1000
+  }
+}

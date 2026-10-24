@@ -63,7 +63,7 @@ class TelemetryBenchmarkSuite:
             "scenario": "03_IMU_SENSOR_RAIL_SATURATION",
             "description": "Accelerometer saturation spike exceeding hardware sensor rails (45 m/s^2)",
             "expected_verdict": DatasetQualityVerdict.REJECTED.value,
-            "actual_verdict": rep_2.verdict.value,
+            "actual_verdict": rep_3.verdict.value,
             "anomalies_detected": len(rep_3.anomalies),
             "passed": p3,
         })
@@ -74,7 +74,10 @@ class TelemetryBenchmarkSuite:
         frames_4.append(sim.generate_frame(inject_kinematic_violation=True))
         pipe_4 = TelemetryIngestPipeline()
         rep_4 = pipe_4.process_stream(frames_4, "ds-04-kinematic")
-        p4 = any(a.anomaly_type == AnomalyType.KINEMATIC_VIOLATION for a in rep_4.anomalies)
+        p4 = (
+            rep_4.verdict == DatasetQualityVerdict.WARNING
+            and any(a.anomaly_type == AnomalyType.KINEMATIC_VIOLATION for a in rep_4.anomalies)
+        )
         if p4: passed += 1
         results.append({
             "scenario": "04_KINEMATIC_LATERAL_VIOLATION",
@@ -166,7 +169,9 @@ class TelemetryBenchmarkSuite:
         frames_9 = [sim.generate_frame() for _ in range(30)]
         pipe_9 = TelemetryIngestPipeline()
         rep_9 = pipe_9.process_stream(frames_9, "ds-09-camera-sync")
-        p9 = rep_9.verdict == DatasetQualityVerdict.CERTIFIED and all(f.camera_sync_id.startswith("cam-sync-") for f in frames_9)
+        p9 = rep_9.verdict == DatasetQualityVerdict.CERTIFIED and all(
+            f.camera_sync_id == f"cam-sync-{f.frame_id:08d}" for f in frames_9
+        )
         if p9: passed += 1
         results.append({
             "scenario": "09_CAMERA_SYNC_ID_CONSISTENCY",
@@ -186,7 +191,13 @@ class TelemetryBenchmarkSuite:
         pipe_10b = TelemetryIngestPipeline()
         rep_10a = pipe_10a.process_stream(frames_10a, "ds-10a")
         rep_10b = pipe_10b.process_stream(frames_10b, "ds-10b")
-        p10 = rep_10a.dataset_checksum == rep_10b.dataset_checksum and len(rep_10a.dataset_checksum) == 64
+        p10 = (
+            rep_10a.verdict == DatasetQualityVerdict.CERTIFIED
+            and rep_10b.verdict == DatasetQualityVerdict.CERTIFIED
+            and rep_10a.clean_frames_sunk == rep_10b.clean_frames_sunk == len(frames_10a)
+            and rep_10a.dataset_checksum == rep_10b.dataset_checksum
+            and len(rep_10a.dataset_checksum) == 64
+        )
         if p10: passed += 1
         results.append({
             "scenario": "10_CRYPTOGRAPHIC_REPRODUCIBILITY",
@@ -201,6 +212,6 @@ class TelemetryBenchmarkSuite:
             "total_scenarios": len(results),
             "passed": passed,
             "failed": len(results) - passed,
-            "accuracy_score": round((passed / len(results)) * 100, 1),
+            "pass_rate_pct": round((passed / len(results)) * 100, 1),
             "scenarios": results,
         }
